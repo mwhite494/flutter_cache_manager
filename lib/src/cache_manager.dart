@@ -172,4 +172,9 @@ abstract class BaseCacheManager {
       await store.removeCachedFile(cacheObject);
     }
   }
+
+  ///Injects file in filePath into the cache at position key = url
+  Future<File> injectFile(String filePath, String url) async {
+    return store.injectFile(filePath, url);
+  }
 }
