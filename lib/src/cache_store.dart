@@ -164,4 +164,71 @@ class CacheStore {
       file.delete();
     }
   }
+
+  ///Injects file in filePath into the cache at position key = url
+  Future<File> injectFile(String filePath, String url) async {
+    String log = "[Flutter Cache Manager] Injecting as $url";
+
+    if (!_memCache.containsKey(url)) {
+      await databaseConnectionLock.synchronized(() {
+        if (!_memCache.containsKey(url)) {
+          var cacheObject = new CacheObject(url);
+          _memCache[cacheObject.url] = Future<CacheObject>.value(cacheObject);
+        }
+      });
+    }
+
+    var cacheObject = await _memCache[url];
+    await cacheObject.lock.synchronized(() async {
+
+      var newCacheData = await _mockedCacheData(
+        filePath,
+        url,
+        cacheObject.lock,
+        relativePath: '/${filePath.split('/').last}'
+      );
+
+      if (newCacheData != null) {
+        _memCache[newCacheData.url] = Future<CacheObject>.value(newCacheData);
+        log = "$log\nInjecting file from $filePath.";
+      }
+
+    });
+
+    var path = await _memCache[url].then((object) => object.getFilePath());
+    if (path == null) {
+      return null;
+    }
+    return new File(path);
+  }
+
+  ///Creates a Cache entry with a given file path
+  Future<CacheObject> _mockedCacheData(
+      String filePath,
+      String url, Object lock,
+      {String relativePath}) async {
+    var newCache = new CacheObject(url, lock: lock, relativePath: relativePath);
+
+    List<int> bodyBytes;
+    try {
+      bodyBytes = await new File(filePath).readAsBytes();
+    } catch (e) {}
+
+    _saveToCacheObject(newCache, bodyBytes);
+    return newCache;
+  }
+
+  void _saveToCacheObject(CacheObject newCache, List<int> bodyBytes) async {
+
+    if (bodyBytes==null)
+      return;
+
+    var filePath = await newCache.getFilePath();
+    var folder = new File(filePath).parent;
+    if (!(await folder.exists())) {
+      folder.createSync(recursive: true);
+    }
+
+    await new File(filePath).writeAsBytes(bodyBytes);
+  }
 }

@@ -4,8 +4,11 @@
 
 // HINT: Unnecessary import. Future and Stream are available via dart:core.
 import 'dart:async';
+import 'dart:io';
 
+import 'package:path_provider/path_provider.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:synchronized/synchronized.dart';
 
 final String tableCacheObject = "cacheObject";
 
@@ -30,9 +33,23 @@ class CacheObject {
   String relativePath;
   DateTime validTill;
   String eTag;
+  Lock lock;
+
+  Future<String> getFilePath() async {
+    if (relativePath == null) {
+      return null;
+    }
+    Directory directory = await getTemporaryDirectory();
+    return directory.path + relativePath;
+  }
+
 
   CacheObject(this.url,
-      {this.relativePath, this.validTill, this.eTag, this.id});
+      {this.relativePath, this.validTill, this.eTag, this.id, this.lock}) {
+        if (lock == null) {
+          this.lock = Lock();
+        }
+      }
 
   Map<String, dynamic> toMap() {
     var map = <String, dynamic>{
@@ -48,12 +65,15 @@ class CacheObject {
     return map;
   }
 
-  CacheObject.fromMap(Map<String, dynamic> map) {
+  CacheObject.fromMap(Map<String, dynamic> map, {this.lock}) {
     id = map[columnId];
     url = map[columnUrl];
     relativePath = map[columnPath];
     validTill = DateTime.fromMillisecondsSinceEpoch(map[columnValidTill]);
     eTag = map[columnETag];
+    if (lock == null) {
+      this.lock = new Lock();
+    }
   }
 
   static List<CacheObject> fromMapList(List<Map<String, dynamic>> list) {
