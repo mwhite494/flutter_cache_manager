@@ -43,7 +43,6 @@ class CacheObject {
     return directory.path + relativePath;
   }
 
-
   CacheObject(this.url,
       {this.relativePath, this.validTill, this.eTag, this.id, this.lock}) {
         if (lock == null) {
@@ -142,6 +141,11 @@ class CacheObjectProvider {
   Future<int> update(CacheObject cacheObject) async {
     return await db.update(tableCacheObject, cacheObject.toMap(),
         where: "$columnId = ?", whereArgs: [cacheObject.id]);
+  }
+
+  Future<List<CacheObject>> getAllObjects() async {
+    List<Map> maps = await db.query(tableCacheObject, columns: null);
+    return CacheObject.fromMapList(maps);
   }
 
   Future<List<CacheObject>> getObjectsOverCapacity(int capacity) async {
